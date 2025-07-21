@@ -3,11 +3,11 @@ const router = express.Router();
 const db = require('../db/mysql');
 const autenticarToken = require('../middleware/auth');
 
-router.use(autenticarToken); // ✅ tudo abaixo exige login
+router.use(autenticarToken);
 
 // GET /categorias
 router.get('/', async (req, res) => {
-    const usuarioId = 1; // no futuro, pegue do token
+    const usuarioId = 1; 
   
     try {
       const [rows] = await db.query(`
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 
 // POST /categorias
 router.post('/', async (req, res) => {
-    const usuarioId = 1; // futuramente pegue do token
+    const usuarioId = 1; 
     const { nome } = req.body;
   
     try {
