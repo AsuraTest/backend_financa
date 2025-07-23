@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../db/mysql');
 const nodemailer = require('nodemailer');
+const autenticarToken = require('../middleware/auth');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -168,4 +169,74 @@ router.post('/redefinir-senha', async (req, res) => {
   }
 });
 
+// Perfil do usuário
+router.get('/perfil', autenticarToken, async (req, res) => {
+  try {
+    const [user] = await db.query(
+      'SELECT id, nome, email FROM usuarios WHERE id = ?', 
+      [req.usuarioId]
+    );
+    res.json(user[0]);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar perfil' });
+  }
+});
+
+// 2. Atualizar perfil
+router.put('/perfil', autenticarToken, async (req, res) => {
+    const { nome, email } = req.body;
+    
+    try {
+        await db.query(
+            'UPDATE usuarios SET nome = ?, email = ? WHERE id = ?',
+            [nome, email, req.usuarioId]
+        );
+        res.json({ message: 'Perfil atualizado' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao atualizar perfil' });
+    }
+});
+
+router.post('/alterar-senha', autenticarToken, async (req, res) => {
+    const { senhaAtual, novaSenha } = req.body;
+    
+    try {
+        const [user] = await db.query(
+            'SELECT senha_hash FROM usuarios WHERE id = ?',
+            [req.usuarioId]
+        );
+        
+        const match = await bcrypt.compare(senhaAtual, user[0].senha_hash);
+        if (!match) return res.status(401).json({ error: 'Senha atual incorreta' });
+
+        const hash = await bcrypt.hash(novaSenha, 10);
+        await db.query(
+            'UPDATE usuarios SET senha_hash = ? WHERE id = ?',
+            [hash, req.usuarioId]
+        );
+        
+        res.json({ message: 'Senha alterada com sucesso' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro ao alterar senha' });
+    }
+});
+
+// 4. Excluir conta (com dados relacionados)
+router.delete('/', autenticarToken, async (req, res) => {
+    try {
+        // Excluir transações do usuário
+        await db.query('DELETE FROM transacoes WHERE usuario_id = ?', [req.usuarioId]);
+
+        // Excluir categorias criadas pelo usuário (não afeta categorias globais com usuario_id NULL)
+        await db.query('DELETE FROM categorias WHERE usuario_id = ?', [req.usuarioId]);
+
+        // Por fim, excluir o usuário
+        await db.query('DELETE FROM usuarios WHERE id = ?', [req.usuarioId]);
+
+        res.json({ message: 'Conta e dados associados excluídos com sucesso' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao excluir conta' });
+    }
+});
 module.exports = router;
