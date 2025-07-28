@@ -7,7 +7,7 @@ router.use(autenticarToken);
 
 // GET /categorias
 router.get('/', async (req, res) => {
-    const usuarioId = 1; 
+    const usuarioId = req.usuarioId; 
   
     try {
       const [rows] = await db.query(`
@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 
 // POST /categorias
 router.post('/', async (req, res) => {
-    const usuarioId = 1; 
+    const usuarioId = req.usuarioId; 
     const { nome } = req.body;
   
     try {
